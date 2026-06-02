@@ -11,6 +11,7 @@ import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import com.velocitypowered.api.proxy.server.ServerPing;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import ooo.foooooooooooo.velocitydiscord.discord.Discord;
 import ooo.foooooooooooo.velocitydiscord.discord.UserLinkData;
 
@@ -50,12 +51,22 @@ public class VelocityListener {
         discord.getPendingLinkCodes().put(code, username);
       }
 
-      player.disconnect(Component.text("Welcome! Link your account in the PRCB Discord. There is a tutorial video for it in the #modpack channel:\n" + code));
+      assert code != null;
+      player.disconnect(
+        Component.text("Welcome! Link your account in the \uE807\uE806.\nVisit ").append(
+          Component.text("projectcrowbar.com/wiki/mcdclink", NamedTextColor.BLUE),
+          Component.text(" for a guide.\n\nYour code is: "),
+          Component.text(code, NamedTextColor.GREEN)
+        )
+      );
     }
   }
 
-  @Subscribe
+  @Subscribe(priority = -1)
   public void onPlayerChat(PlayerChatEvent event) {
+    // If the event was denied, return and don't run the rest of the code
+    if (!event.getResult().isAllowed()) return;
+
     var currentServer = event.getPlayer().getCurrentServer();
 
     if (currentServer.isEmpty()) {
@@ -106,9 +117,9 @@ public class VelocityListener {
 
   @Subscribe
   public void onDisconnect(DisconnectEvent event) {
-    if (UserLinkData.getDiscordUserID(event.getPlayer().getUsername()) == null) {return;}
-
     updatePlayerCount();
+
+    if (UserLinkData.getDiscordUserID(event.getPlayer().getUsername()) == null) {return;}
 
     var currentServer = event.getPlayer().getCurrentServer();
 
