@@ -24,6 +24,12 @@ ping_interval = 30
 token = "TOKEN"
 # Default channel ID to send Minecraft chat messages to
 channel = "000000000000000000"
+# Guild ID in which to check if users are in before allowing them to join.
+# Set to "none" to skip checking
+guild_id = "none"
+
+# Set user nicknames to their Minecraft name once they link
+set_nicknames = false
 
 # Show messages from bots in Minecraft chat
 show_bot_messages = false
@@ -248,6 +254,18 @@ codeblock_lang = "asciidoc"
 # Not server overridable
 # e.g., /discord, /discord reload, /discord topic preview
 plugin_command = "discord"
+
+# Kick message for unlinked players
+# <code> will be replaced by the code the user needs to input into the bot
+unlinked_kick_message = "Link your account in the Discord server by running /link!\n\nYour code is: <code>"
+
+# Kick message for when the user is no longer in the Discord server
+discord_not_present_kick_message = "Your linked Discord account is no longer in the Discord server.\nPlease rejoin the Discord server to get access to the Minecraft server!"
+
+# Kick message for when the user gets unlinked by a moderator
+discord_unlink_kick_message = "Your Discord has been unlinked.\nPlease rejoin and try linking again!"
+
+
 
 # Placeholders available: {discord}
 discord_chunk = "<dark_gray>[<{discord_color}>Discord<dark_gray>]<reset>"

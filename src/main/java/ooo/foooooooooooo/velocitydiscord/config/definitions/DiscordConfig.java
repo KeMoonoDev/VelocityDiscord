@@ -15,6 +15,16 @@ public class DiscordConfig {
   public String mainChannelId = DEFAULT_CHANNEL_ID;
 
   /**
+   * Guild ID in which to check if users are in before allowing them to join
+   */
+  public String guildId = "none";
+
+  /**
+   * Set user nicknames to their Minecraft name once they link
+   */
+  public boolean setNicknames = false;
+
+  /**
    * Show messages from bots in Minecraft chat
    */
   public boolean showBotMessages = false;
@@ -48,6 +58,8 @@ public class DiscordConfig {
     if (config == null) return;
 
     this.mainChannelId = config.getOrDefault("channel", this.mainChannelId);
+    this.guildId = config.getOrDefault("guild_id", this.guildId);
+    this.setNicknames = config.getOrDefault("set_nicknames", this.setNicknames);
     this.showBotMessages = config.getOrDefault("show_bot_messages", this.showBotMessages);
     this.showAttachmentsIngame = config.getOrDefault("show_attachments_ingame", this.showAttachmentsIngame);
     this.enableMentions = config.getOrDefault("enable_mentions", this.enableMentions);

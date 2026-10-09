@@ -8,6 +8,8 @@ import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.entities.IncomingWebhookClient;
 import net.dv8tion.jda.api.entities.WebhookClient;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.events.guild.GuildLeaveEvent;
+import net.dv8tion.jda.api.events.guild.member.GuildMemberRemoveEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.session.ReadyEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
@@ -20,7 +22,11 @@ import net.dv8tion.jda.api.utils.ChunkingFilter;
 import net.dv8tion.jda.api.utils.MemberCachePolicy;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import ooo.foooooooooooo.velocitydiscord.LinkedPlayer;
+import ooo.foooooooooooo.velocitydiscord.PendingLinkedPlayer;
 import ooo.foooooooooooo.velocitydiscord.VelocityDiscord;
 import ooo.foooooooooooo.velocitydiscord.config.ServerConfig;
 import ooo.foooooooooooo.velocitydiscord.config.definitions.WebhookConfig;
@@ -29,6 +35,7 @@ import ooo.foooooooooooo.velocitydiscord.discord.commands.LinkCommand;
 import ooo.foooooooooooo.velocitydiscord.discord.commands.ListCommand;
 import ooo.foooooooooooo.velocitydiscord.discord.message.IQueuedMessage;
 import ooo.foooooooooooo.velocitydiscord.util.StringTemplate;
+import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nonnull;
 import java.awt.*;
@@ -47,7 +54,7 @@ public class Discord extends ListenerAdapter {
   private final MessageListener messageListener;
 
   // Store pending Discord link codes
-  private final ConcurrentHashMap<String, String> pendingLinks = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, PendingLinkedPlayer> pendingLinks = new ConcurrentHashMap<>();
 
   private final Map<String, ICommand> commands = new HashMap<>();
   private final HashMap<String, List<String>> mentionCompletions = new HashMap<>();
@@ -127,6 +134,10 @@ public class Discord extends ListenerAdapter {
     for (var msg : this.preReadyQueue) {
       msg.send(this);
     }
+  }
+
+  public JDA getJda() {
+    return this.jda;
   }
 
   private void loadChannels() {
@@ -764,7 +775,7 @@ public class Discord extends ListenerAdapter {
     return this.serverChannels.getOrDefault(server, this.defaultChannels);
   }
 
-  public ConcurrentHashMap<String, String> getPendingLinkCodes() {return pendingLinks;}
+  public ConcurrentHashMap<String, PendingLinkedPlayer> getPendingLinkCodes() {return pendingLinks;}
 
   private record QueuedWebhookMessage(String server, MessageCategory type, MessageCreateData message, String avatar,
                                       String username) implements IQueuedMessage {
@@ -812,6 +823,16 @@ public class Discord extends ListenerAdapter {
     public void send(Discord discord) {
       this.player.addCustomChatCompletions(discord.mentionCompletions.get(this.server));
     }
+  }
+
+  @Override
+  public void onGuildMemberRemove(@NotNull GuildMemberRemoveEvent event) {
+    var entry = UserLinkData.getFromDiscordUserID(event.getMember().getId());
+    if (entry == null) return;
+    UUID uuid = UUID.fromString(entry.getKey());
+    var maybePlayer = VelocityDiscord.SERVER.getPlayer(uuid);
+    maybePlayer.ifPresent(player -> player.disconnect(MiniMessage.miniMessage().deserialize(VelocityDiscord.CONFIG.getMinecraftConfig().discordNotPresentKickMessage)));
+    super.onGuildMemberRemove(event);
   }
 
   public static class Channels {

@@ -10,8 +10,12 @@ import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import com.velocitypowered.api.proxy.server.ServerPing;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import ooo.foooooooooooo.velocitydiscord.discord.Discord;
 import ooo.foooooooooooo.velocitydiscord.discord.UserLinkData;
 
@@ -35,30 +39,51 @@ public class VelocityListener {
   @Subscribe
   public void onLogin(LoginEvent event) {
     Player player = event.getPlayer();
+    String uuid = player.getUniqueId().toString();
     String username = player.getUsername();
 
-    if (UserLinkData.getDiscordUserID(username) == null) {
+    LinkedPlayer linkedPlayer = UserLinkData.getFromMinecraftUUID(uuid);
+
+    if (linkedPlayer == null) {
       String code;
       // If the user has active codes use that instead of generating a new code
-      if (discord.getPendingLinkCodes().containsValue(username)) {
-        code = discord.getPendingLinkCodes().entrySet().stream()
-          .filter(e -> e.getValue().equalsIgnoreCase(username))
-          .map(Map.Entry::getKey)
-          .findFirst()
-          .orElse(null);
+      PendingLinkedPlayer pendingLinkedPlayer = discord.getPendingLinkCodes().get(uuid);
+      if (pendingLinkedPlayer != null) {
+        pendingLinkedPlayer.minecraftName = username;
+        code = pendingLinkedPlayer.code;
       } else {
         code = UUID.randomUUID().toString().substring(0, 3).toUpperCase();
-        discord.getPendingLinkCodes().put(code, username);
+        discord.getPendingLinkCodes().put(uuid, new PendingLinkedPlayer(username, code));
       }
 
       assert code != null;
-      player.disconnect(
-        Component.text("Welcome! Link your account in the \uE807\uE806.\nVisit ").append(
-          Component.text("projectcrowbar.com/wiki/mcdclink", NamedTextColor.BLUE),
-          Component.text(" for a guide.\n\nYour code is: "),
-          Component.text(code, NamedTextColor.GREEN)
-        )
-      );
+
+      player.disconnect(MiniMessage.miniMessage().deserialize(VelocityDiscord.CONFIG.getMinecraftConfig().unlinkedKickMessage, Placeholder.unparsed("code", code)));
+    } else {
+      if (!linkedPlayer.minecraftName.equals(username)) {
+        linkedPlayer.minecraftName = username;
+        try {
+          UserLinkData.saveAll();
+        } catch (Exception e) {System.out.println("Error saving updated username in user link data: " + e);}
+      }
+
+      String guildId = VelocityDiscord.CONFIG.getDiscordConfig().guildId;
+      if (!guildId.equals("none")) {
+        Guild guild = discord.getJda().getGuildById(guildId);
+        if (guild == null) {
+          player.disconnect(Component.text("Failed to get Discord guild.\nFor players, please wait a bit, or contact people in charge if the issue persists.\nFor people in charge, please make sure the guild_id property is set to the correct guild id."));
+          return;
+        }
+        Member member;
+
+        member = guild.getMemberById(linkedPlayer.discordId);
+
+        if (member == null) {
+          // If member is null, it's either because they are not cached, or because they are not in the server.
+          // The member cache policy is set to ALL, so I assume every single member is being cached.
+          player.disconnect(MiniMessage.miniMessage().deserialize(VelocityDiscord.CONFIG.getMinecraftConfig().discordNotPresentKickMessage));
+        }
+      }
     }
   }
 
@@ -119,7 +144,7 @@ public class VelocityListener {
   public void onDisconnect(DisconnectEvent event) {
     updatePlayerCount();
 
-    if (UserLinkData.getDiscordUserID(event.getPlayer().getUsername()) == null) {return;}
+    if (UserLinkData.getFromMinecraftUUID(event.getPlayer().getUniqueId().toString()) == null) {return;}
 
     var currentServer = event.getPlayer().getCurrentServer();
 

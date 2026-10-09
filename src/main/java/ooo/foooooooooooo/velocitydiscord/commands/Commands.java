@@ -14,6 +14,7 @@ public final class Commands {
       .literalArgumentBuilder(config.global.minecraft.pluginCommand)
       .then(ReloadCommand.create())
       .then(TopicPreviewCommand.create())
+      .then(UnlinkCommand.create())
       .build();
 
     var command = new BrigadierCommand(node);

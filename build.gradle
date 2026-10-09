@@ -32,7 +32,6 @@ dependencies {
 
   implementation "com.electronwill.night-config:toml:$night_config_version"
   implementation "cc.unilock:yeplib:$yeplib_version"
-  implementation 'com.fasterxml.jackson.core:jackson-databind:2.16.1'
 
   testImplementation platform("org.junit:junit-bom:$junit_version")
   testImplementation 'org.junit.jupiter:junit-jupiter'
@@ -48,7 +47,6 @@ shadowJar {
   // Relocate packages to avoid conflicts
   relocate 'net.dv8tion.jda', 'shaded.net.dv8tion.jda'
   relocate 'okhttp3', 'shaded.okhttp3'
-  relocate 'com.fasterxml', 'shaded.com.fasterxml'
 
   setConfigurations([project.configurations.shade])
   relocate("net.dv8tion", "ooo.foooooooooooo.velocitydiscord.lib.net.dv8tion")

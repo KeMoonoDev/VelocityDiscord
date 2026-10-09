@@ -76,8 +76,6 @@ public class VelocityDiscord {
 
     this.discord = new Discord();
 
-    new LinkCommand(this.discord);
-
     if (server.getPluginManager().isLoaded(Constants.YeplibId)) {
       this.yep = new YepListener();
     }

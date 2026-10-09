@@ -3,9 +3,12 @@ package ooo.foooooooooooo.velocitydiscord.discord.commands;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.SlashCommandInteraction;
+import ooo.foooooooooooo.velocitydiscord.PendingLinkedPlayer;
+import ooo.foooooooooooo.velocitydiscord.VelocityDiscord;
 import ooo.foooooooooooo.velocitydiscord.discord.Discord;
 import ooo.foooooooooooo.velocitydiscord.discord.UserLinkData;
 
+import java.util.Map;
 import java.util.Objects;
 
 public class LinkCommand implements ICommand {
@@ -20,9 +23,11 @@ public class LinkCommand implements ICommand {
   @Override
   public void handle(SlashCommandInteraction interaction) {
     // Check bot's permissions
-    if (!Objects.requireNonNull(interaction.getMember()).getGuild().getSelfMember().hasPermission(Permission.NICKNAME_MANAGE)) {
-      interaction.reply("I do not have permission to change your nickname. Please check my role permissions.").setEphemeral(true).queue();
-      return;
+    if (VelocityDiscord.CONFIG.getDiscordConfig().setNicknames) {
+      if (!Objects.requireNonNull(interaction.getMember()).getGuild().getSelfMember().hasPermission(Permission.NICKNAME_MANAGE)) {
+        interaction.reply("I do not have permission to change your nickname. Please check my role permissions.").setEphemeral(true).queue();
+        return;
+      }
     }
 
     OptionMapping codeParam = interaction.getOption("code");
@@ -34,12 +39,26 @@ public class LinkCommand implements ICommand {
 
     String code = codeParam.getAsString();
 
-    if (discord.getPendingLinkCodes().get(code) != null) {
-      System.out.println(interaction.getMember().getId() + " " + discord.getPendingLinkCodes().get(code));
-      Objects.requireNonNull(interaction.getGuild()).modifyNickname(interaction.getMember(), discord.getPendingLinkCodes().get(code)).queue();
+     Map.Entry<String, PendingLinkedPlayer> pendingEntry = null;
+
+    for (var entry : discord.getPendingLinkCodes().entrySet()) {
+      if (entry.getValue().code.equals(code)) {
+        pendingEntry = entry;
+        break;
+      }
+    }
+
+    if (pendingEntry != null) {
+      String uuid = pendingEntry.getKey();
+      PendingLinkedPlayer pendingLinkedPlayer = pendingEntry.getValue();
+      System.out.println(interaction.getMember().getId() + " " + pendingLinkedPlayer.minecraftName);
+
+      if (VelocityDiscord.CONFIG.getDiscordConfig().setNicknames) {
+        Objects.requireNonNull(interaction.getGuild()).modifyNickname(interaction.getMember(), pendingLinkedPlayer.minecraftName).queue();
+      }
 
       try {
-        UserLinkData.save(interaction.getMember().getId(), discord.getPendingLinkCodes().get(code));
+        UserLinkData.addAndSave(uuid, pendingLinkedPlayer.minecraftName, interaction.getMember().getId());
       }
       catch (Exception e) {System.out.println("Error saving user link data");}
 
@@ -48,8 +67,6 @@ public class LinkCommand implements ICommand {
       discord.getPendingLinkCodes().remove(code);
     } else {
       interaction.reply("Invalid code. Please make sure you provide a valid code.").setEphemeral(true).queue();
-      System.out.println(discord.getPendingLinkCodes());
-      System.out.println(discord.getPendingLinkCodes().get(code));
     }
   }
 
