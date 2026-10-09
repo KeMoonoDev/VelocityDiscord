@@ -1,8 +1,14 @@
-# Velocity Discord (Modified for Project Crowbar)
+# Velocity Discord (Modified for Kitcraft)
 
-Chat from all servers gets bridged with a discord channel.
-With a additional feature of linking and syncing Discord users with Minecraft users. This is hardcoded.
+Makes the additional features from the Project Crowbar fork configurable.
 
-## Original plugin by [fooooooooooooooo](https://github.com/fooooooooooooooo)
-Go give them a star
-[Link to original repository](https://github.com/fooooooooooooooo/VelocityDiscord)
+Also adds some features, such as admins being able to unlink players, and having the
+option to kick Minecraft players if their linked Discord account gets removed from the Discord server.
+
+## Credits
+Thanks to [fooooooooooooooo](https://github.com/fooooooooooooooo) for making the [original plugin](https://github.com/fooooooooooooooo/VelocityDiscord).
+
+And thanks to [Project Crowbar](https://github.com/Project-Crowbar) for making [the fork](https://github.com/Project-Crowbar/VelocityDiscord) that this
+fork was based on.
+
+Go give them both a star!
