@@ -22,6 +22,11 @@ public class LinkCommand implements ICommand {
 
   @Override
   public void handle(SlashCommandInteraction interaction) {
+    if (UserLinkData.getFromDiscordUserID(interaction.getMember().getId()) != null) {
+      interaction.reply("This Discord account is already linked.").setEphemeral(true).queue();
+      return;
+    }
+
     // Check bot's permissions
     if (VelocityDiscord.CONFIG.getDiscordConfig().setNicknames) {
       if (!Objects.requireNonNull(interaction.getMember()).getGuild().getSelfMember().hasPermission(Permission.NICKNAME_MANAGE)) {
