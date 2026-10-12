@@ -14,6 +14,10 @@ repositories {
   mavenLocal()
   mavenCentral()
   maven { url = 'https://repo.papermc.io/repository/maven-public/' }
+  maven {
+    name = "Modrinth"
+    url = "https://api.modrinth.com/maven"
+  }
 }
 
 dependencies {
@@ -29,6 +33,7 @@ dependencies {
   }
 
   compileOnly "net.kyori:adventure-text-minimessage:$minimessage_version"
+  compileOnly "maven.modrinth:ZIxTT2xI:gGuatrgi" // vMessage
 
   implementation "com.electronwill.night-config:toml:$night_config_version"
   implementation "cc.unilock:yeplib:$yeplib_version"

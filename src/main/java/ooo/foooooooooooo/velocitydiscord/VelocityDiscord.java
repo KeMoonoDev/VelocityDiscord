@@ -7,9 +7,11 @@ import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
 import com.velocitypowered.api.plugin.Dependency;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
+import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier;
 import com.velocitypowered.api.scheduler.ScheduledTask;
+import off.szymon.vmessage.VMessagePlugin;
 import ooo.foooooooooooo.velocitydiscord.commands.Commands;
 import ooo.foooooooooooo.velocitydiscord.compat.LuckPerms;
 import ooo.foooooooooooo.velocitydiscord.config.PluginConfig;
@@ -21,8 +23,10 @@ import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 
 @Plugin(id = "discord", name = Constants.PluginName, description = Constants.PluginDescription, version =
   Constants.PluginVersion, url = Constants.PluginUrl, authors = {"fooooooooooooooo"}, dependencies = {
@@ -117,6 +121,22 @@ public class VelocityDiscord {
     }
 
     Commands.registerCommands(SERVER.getCommandManager(), CONFIG);
+
+    try {
+      if (SERVER.getPluginManager().getPlugin("vmessage").isPresent()) {
+        VMessagePlugin vMessage = VMessagePlugin.get();
+        Method addMessageCallback = VMessagePlugin.class.getMethod("addMessageCallback", BiConsumer.class);
+
+        BiConsumer<Player, String> consumer = (player, message) -> {
+          VelocityDiscord.getListener().onAllowedPlayerChat(player, message);
+        };
+
+        addMessageCallback.invoke(vMessage, consumer);
+        LOGGER.info("Successfully added callback to vMessage.");
+      }
+    } catch (Exception e) {
+      LOGGER.warn("Error adding callbacks to vMessage instance: {}", e.getMessage());
+    }
 
     try {
       if (SERVER.getPluginManager().getPlugin("luckperms").isPresent()) {

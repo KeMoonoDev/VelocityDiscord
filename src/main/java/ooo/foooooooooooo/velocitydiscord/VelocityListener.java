@@ -92,7 +92,11 @@ public class VelocityListener {
     // If the event was denied, return and don't run the rest of the code
     if (!event.getResult().isAllowed()) return;
 
-    var currentServer = event.getPlayer().getCurrentServer();
+    onAllowedPlayerChat(event.getPlayer(), event.getMessage());
+  }
+
+  public void onAllowedPlayerChat(Player player, String message) {
+    var currentServer = player.getCurrentServer();
 
     if (currentServer.isEmpty()) {
       return;
@@ -104,12 +108,12 @@ public class VelocityListener {
       return;
     }
 
-    var username = event.getPlayer().getUsername();
-    var uuid = event.getPlayer().getUniqueId();
+    var username = player.getUsername();
+    var uuid = player.getUniqueId();
 
     var prefix = getPrefix(uuid);
 
-    this.discord.onPlayerChat(username, uuid.toString(), prefix, server, event.getMessage());
+    this.discord.onPlayerChat(username, uuid.toString(), prefix, server, message);
   }
 
   @Subscribe
