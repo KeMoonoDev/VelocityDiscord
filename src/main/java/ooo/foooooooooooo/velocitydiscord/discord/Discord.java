@@ -5,9 +5,13 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Activity;
+import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.IncomingWebhookClient;
 import net.dv8tion.jda.api.entities.WebhookClient;
+import net.dv8tion.jda.api.entities.channel.attribute.IMemberContainer;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.entities.channel.concrete.ThreadChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.events.guild.GuildLeaveEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberRemoveEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -68,9 +72,9 @@ public class Discord extends ListenerAdapter {
 
   private String lastToken;
 
-  private TextChannel mainChannel;
-  private TextChannel proxyStartChannel;
-  private TextChannel proxyStopChannel;
+  private MessageChannel mainChannel;
+  private MessageChannel proxyStartChannel;
+  private MessageChannel proxyStopChannel;
   private Channels defaultChannels;
 
   private int lastPlayerCount = -1;
@@ -152,7 +156,7 @@ public class Discord extends ListenerAdapter {
     for (var server : VelocityDiscord.SERVER.getAllServers()) {
       var serverName = server.getServerInfo().getName();
       var config = VelocityDiscord.CONFIG.getServerConfig(serverName);
-      var defaultChannel = this.jda.getTextChannelById(config.getDiscordConfig().mainChannelId);
+      var defaultChannel = this.loadChannel(config.getDiscordConfig().mainChannelId);
       this.serverChannels.put(serverName, new Channels(this, serverName, config, defaultChannel));
     }
 
@@ -163,15 +167,22 @@ public class Discord extends ListenerAdapter {
     // Load all discord users in the channel and add them to MC client chat suggestions
     this.mentionCompletions.clear();
     for (var channels : this.serverChannels.values()) {
-      var members = channels.chatChannel.getMembers();
-      this.mentionCompletions.put(
-        channels.serverName,
-        members.stream().map((m -> "@" + m.getUser().getName())).toList()
-      );
+      if (channels.chatChannel instanceof IMemberContainer memberContainer) {
+        var members = memberContainer.getMembers();
+        this.mentionCompletions.put(
+          channels.serverName,
+          members.stream().map((m -> "@" + m.getUser().getName())).toList()
+        );
+      } else {
+        this.mentionCompletions.put(
+          channels.serverName,
+          List.of()
+        );
+      }
     }
 
     // Register commands
-    var guild = this.mainChannel.getGuild();
+    Guild guild = this.getJda().getGuildById(VelocityDiscord.CONFIG.getDiscordConfig().guildId);
     if (!this.commands.isEmpty()) {
       List<CommandData> commandData = new ArrayList<>();
       for (var entry : this.commands.entrySet()) {
@@ -635,7 +646,9 @@ public class Discord extends ListenerAdapter {
 
     if (topic == null) return;
 
-    this.mainChannel.getManager().setTopic(topic).queue();
+    if (this.mainChannel instanceof TextChannel textChannel) {
+      textChannel.getManager().setTopic(topic).queue();
+    }
   }
 
   private String formatUptime(long uptimeMillis) {
@@ -666,16 +679,20 @@ public class Discord extends ListenerAdapter {
 
   // region Message sending
 
-  private void sendMessage(TextChannel targetChannel, @Nonnull String message) {
+  private void sendMessage(MessageChannel targetChannel, @Nonnull String message) {
+    VelocityDiscord.LOGGER.info("is ready " + this.ready);
     if (this.ready) {
-      targetChannel.sendMessage(message).queue();
+      targetChannel.sendMessage(message).onErrorMap(err -> {
+        VelocityDiscord.LOGGER.error(err.toString());
+        return null;
+      }).queue();
     } else {
       this.preReadyQueue.add(new QueuedStringMessage(targetChannel, message));
     }
   }
 
   @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-  private void sendEmbedMessage(TextChannel channel, String message, Optional<Color> color) {
+  private void sendEmbedMessage(MessageChannel channel, String message, Optional<Color> color) {
     var embed = new EmbedBuilder().setDescription(message);
 
     color.ifPresent(embed::setColor);
@@ -737,11 +754,13 @@ public class Discord extends ListenerAdapter {
 
     var msg = message;
 
-    for (var member : channels.chatChannel.getMembers()) {
-      msg = Pattern
-        .compile(Pattern.quote("@" + member.getUser().getName()), Pattern.CASE_INSENSITIVE)
-        .matcher(msg)
-        .replaceAll(member.getAsMention());
+    if (channels.chatChannel instanceof IMemberContainer memberContainer) {
+      for (var member : memberContainer.getMembers()) {
+        msg = Pattern
+          .compile(Pattern.quote("@" + member.getUser().getName()), Pattern.CASE_INSENSITIVE)
+          .matcher(msg)
+          .replaceAll(member.getAsMention());
+      }
     }
 
     return msg;
@@ -755,8 +774,12 @@ public class Discord extends ListenerAdapter {
     return RawPingPattern.matcher(message).replaceAll("<@\u200B${ping}>");
   }
 
-  private TextChannel loadChannel(String id) {
-    var channel = this.jda.getTextChannelById(id);
+  private MessageChannel loadChannel(String id) {
+    MessageChannel channel = this.jda.getTextChannelById(id);
+
+    if (channel == null) {
+      channel = this.jda.getThreadChannelById(id);
+    }
 
     if (channel == null) {
       VelocityDiscord.LOGGER.error("Could not load channel with id: {}", id);
@@ -804,14 +827,14 @@ public class Discord extends ListenerAdapter {
     }
   }
 
-  private record QueuedEmbedMessage(TextChannel channel, EmbedBuilder embed) implements IQueuedMessage {
+  private record QueuedEmbedMessage(MessageChannel channel, EmbedBuilder embed) implements IQueuedMessage {
     @Override
     public void send(Discord discord) {
       this.channel.sendMessageEmbeds(this.embed.build()).queue();
     }
   }
 
-  private record QueuedStringMessage(TextChannel channel, String message) implements IQueuedMessage {
+  private record QueuedStringMessage(MessageChannel channel, String message) implements IQueuedMessage {
     @Override
     public void send(Discord discord) {
       this.channel.sendMessage(this.message).queue();
@@ -840,24 +863,24 @@ public class Discord extends ListenerAdapter {
 
     private IncomingWebhookClient mainWebhook;
 
-    public TextChannel chatChannel;
+    public MessageChannel chatChannel;
     public IncomingWebhookClient chatWebhook;
-    public TextChannel deathChannel;
+    public MessageChannel deathChannel;
     public IncomingWebhookClient deathWebhook;
-    public TextChannel advancementChannel;
+    public MessageChannel advancementChannel;
     public IncomingWebhookClient advancementWebhook;
-    public TextChannel joinChannel;
+    public MessageChannel joinChannel;
     public IncomingWebhookClient joinWebhook;
-    public TextChannel leaveChannel;
+    public MessageChannel leaveChannel;
     public IncomingWebhookClient leaveWebhook;
-    public TextChannel disconnectChannel;
+    public MessageChannel disconnectChannel;
     public IncomingWebhookClient disconnectWebhook;
-    public TextChannel serverSwitchChannel;
+    public MessageChannel serverSwitchChannel;
     public IncomingWebhookClient serverSwitchWebhook;
-    public TextChannel serverStartChannel;
-    public TextChannel serverStopChannel;
+    public MessageChannel serverStartChannel;
+    public MessageChannel serverStopChannel;
 
-    public Channels(Discord discord, String serverName, ServerConfig config, TextChannel defaultChannel) {
+    public Channels(Discord discord, String serverName, ServerConfig config, MessageChannel defaultChannel) {
       this.serverName = serverName;
 
       var chat = config.getDiscordConfig().chat;
@@ -898,7 +921,7 @@ public class Discord extends ListenerAdapter {
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private static TextChannel getChannel(Discord discord, Optional<String> id, TextChannel defaultChannel) {
+    private static MessageChannel getChannel(Discord discord, Optional<String> id, MessageChannel defaultChannel) {
       if (id.isEmpty()) {
         return defaultChannel;
       }

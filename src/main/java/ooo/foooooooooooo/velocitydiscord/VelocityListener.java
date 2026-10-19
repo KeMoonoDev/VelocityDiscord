@@ -68,21 +68,19 @@ public class VelocityListener {
       }
 
       String guildId = VelocityDiscord.CONFIG.getDiscordConfig().guildId;
-      if (!guildId.equals("none")) {
-        Guild guild = discord.getJda().getGuildById(guildId);
-        if (guild == null) {
-          player.disconnect(Component.text("Failed to get Discord guild.\nFor players, please wait a bit, or contact people in charge if the issue persists.\nFor people in charge, please make sure the guild_id property is set to the correct guild id."));
-          return;
-        }
-        Member member;
+      Guild guild = discord.getJda().getGuildById(guildId);
+      if (guild == null) {
+        player.disconnect(Component.text("Failed to get Discord guild.\nFor players, please wait a bit, or contact people in charge if the issue persists.\nFor people in charge, please make sure the guild_id property is set to the correct guild id."));
+        return;
+      }
+      Member member;
 
-        member = guild.getMemberById(linkedPlayer.discordId);
+      member = guild.getMemberById(linkedPlayer.discordId);
 
-        if (member == null) {
-          // If member is null, it's either because they are not cached, or because they are not in the server.
-          // The member cache policy is set to ALL, so I assume every single member is being cached.
-          player.disconnect(MiniMessage.miniMessage().deserialize(VelocityDiscord.CONFIG.getMinecraftConfig().discordNotPresentKickMessage));
-        }
+      if (member == null) {
+        // If member is null, it's either because they are not cached, or because they are not in the server.
+        // The member cache policy is set to ALL, so I assume every single member is being cached.
+        player.disconnect(MiniMessage.miniMessage().deserialize(VelocityDiscord.CONFIG.getMinecraftConfig().discordNotPresentKickMessage));
       }
     }
   }

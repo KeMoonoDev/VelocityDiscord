@@ -3,6 +3,7 @@ package ooo.foooooooooooo.velocitydiscord.discord;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
+import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -45,16 +46,12 @@ public class MessageListener extends ListenerAdapter {
 
   @Override
   public void onMessageReceived(@Nonnull MessageReceivedEvent event) {
-    if (!event.isFromType(ChannelType.TEXT)) {
-      VelocityDiscord.LOGGER.trace("ignoring non text channel message");
-      return;
-    }
-
     if (this.jda == null) {
       this.jda = event.getJDA();
     }
 
-    var channel = event.getChannel().asTextChannel();
+    var channel = event.getChannel();
+
     var targetServerNames = this.channelToServersMap.get(channel.getIdLong());
 
     if (targetServerNames == null) {
