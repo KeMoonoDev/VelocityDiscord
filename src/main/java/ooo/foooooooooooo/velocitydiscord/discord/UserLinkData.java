@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
+import kotlin.Pair;
 import ooo.foooooooooooo.velocitydiscord.LinkedPlayer;
 import org.jetbrains.annotations.Nullable;
 
@@ -48,17 +49,17 @@ public class UserLinkData {
     saveAll();
   }
 
-  public static @Nullable String removeFromUUIDAndSave(String minecraftUUID) throws IOException {
+  public static @Nullable Pair<String, LinkedPlayer> removeFromUUIDAndSave(String minecraftUUID) throws IOException {
     String lowercasedUUID = minecraftUUID.toLowerCase();
-    boolean removed = links.remove(lowercasedUUID) != null;
-    if (removed) {
+    LinkedPlayer removed = links.remove(lowercasedUUID);
+    if (removed != null) {
       saveAll();
-      return lowercasedUUID;
+      return new Pair<>(lowercasedUUID, removed);
     };
     return null;
   }
 
-  public static @Nullable String removeFromNameAndSave(String minecraftName) throws IOException {
+  public static @Nullable Pair<String, LinkedPlayer> removeFromNameAndSave(String minecraftName) throws IOException {
     String uuid = null;
     String lowercaseMinecraftName = minecraftName.toLowerCase();
     for (var link : links.entrySet()) {

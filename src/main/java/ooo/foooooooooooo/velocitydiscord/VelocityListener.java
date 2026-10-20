@@ -1,12 +1,15 @@
 package ooo.foooooooooooo.velocitydiscord;
 
 import com.velocitypowered.api.event.Subscribe;
+import com.velocitypowered.api.event.command.PostCommandInvocationEvent;
 import com.velocitypowered.api.event.connection.DisconnectEvent;
 import com.velocitypowered.api.event.connection.LoginEvent;
 import com.velocitypowered.api.event.player.PlayerChatEvent;
 import com.velocitypowered.api.event.player.ServerConnectedEvent;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
+import com.velocitypowered.api.event.proxy.server.ServerRegisteredEvent;
+import com.velocitypowered.api.event.proxy.server.ServerUnregisteredEvent;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import com.velocitypowered.api.proxy.server.ServerPing;
@@ -27,13 +30,15 @@ import java.util.concurrent.CompletableFuture;
 
 public class VelocityListener {
   private final Discord discord;
+  private final AdminLogsListener adminLogsListener;
 
   private final Map<String, ServerState> serverState = new HashMap<>();
 
   private boolean firstHealthCheck = true;
 
-  public VelocityListener(Discord discord) {
+  public VelocityListener(Discord discord, AdminLogsListener adminLogsListener) {
     this.discord = discord;
+    this.adminLogsListener = adminLogsListener;
   }
 
   @Subscribe
@@ -135,11 +140,17 @@ public class VelocityListener {
     var prefix = getPrefix(uuid);
 
     // if previousServer is disabled but the current server is not, treat it as a join
-    if (previousServer.isPresent() && !VelocityDiscord.CONFIG.serverDisabled(previousName)) {
+    boolean hasSwitchFormat = VelocityDiscord.CONFIG.getServerConfig(server).getChatConfig().serverSwitch.format.isPresent();
+    if (previousServer.isPresent() && !VelocityDiscord.CONFIG.serverDisabled(previousName) && hasSwitchFormat) {
       this.discord.onServerSwitch(username, uuid.toString(), prefix, server, previousName);
     } else {
+      if (previousServer.isPresent() && !VelocityDiscord.CONFIG.serverDisabled(previousName)) {
+        this.discord.onLeave(username, uuid.toString(), prefix, previousName);
+      }
       this.discord.onJoin(event.getPlayer(), prefix, server);
     }
+
+
   }
 
   @Subscribe
@@ -186,10 +197,12 @@ public class VelocityListener {
   // the reason Component to check if its server shutting down message or something
   // but this seems like it would fail to work if literally anything in the message changes
   private void onServerOffline(String server) {
+    this.adminLogsListener.onServerStop(server);
     this.discord.onServerStop(server);
   }
 
   private void onServerOnline(String server) {
+    this.adminLogsListener.onServerStart(server);
     this.discord.onServerStart(server);
   }
 

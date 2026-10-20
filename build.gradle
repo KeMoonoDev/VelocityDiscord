@@ -32,6 +32,7 @@ dependencies {
     exclude module: 'opus-java'
   }
 
+  compileOnly "org.libertybans:bans-api:1.2.0-M1"
   compileOnly "net.kyori:adventure-text-minimessage:$minimessage_version"
   compileOnly "maven.modrinth:ZIxTT2xI:gGuatrgi" // vMessage
 

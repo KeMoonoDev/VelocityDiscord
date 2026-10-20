@@ -774,7 +774,7 @@ public class Discord extends ListenerAdapter {
     return RawPingPattern.matcher(message).replaceAll("<@\u200B${ping}>");
   }
 
-  private MessageChannel loadChannel(String id) {
+  public MessageChannel loadChannel(String id) {
     MessageChannel channel = this.jda.getTextChannelById(id);
 
     if (channel == null) {

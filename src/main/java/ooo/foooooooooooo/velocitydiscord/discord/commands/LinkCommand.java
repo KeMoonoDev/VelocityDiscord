@@ -67,6 +67,8 @@ public class LinkCommand implements ICommand {
       }
       catch (Exception e) {System.out.println("Error saving user link data");}
 
+      VelocityDiscord.getAdminLogsListener().onLink(pendingLinkedPlayer.minecraftName, uuid, interaction.getUser().getId());
+
       System.out.println("Linked Discord user " + interaction.getUser().getAsTag() + " to Minecraft username: " + discord.getPendingLinkCodes().get(code));
       interaction.reply("Successfully linked your account with the code: " + code).setEphemeral(true).queue();
       discord.getPendingLinkCodes().remove(code);

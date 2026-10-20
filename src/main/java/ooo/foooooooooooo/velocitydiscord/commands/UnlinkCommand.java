@@ -6,9 +6,13 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.velocitypowered.api.command.BrigadierCommand;
 import com.velocitypowered.api.command.CommandSource;
+import com.velocitypowered.api.proxy.ConsoleCommandSource;
+import com.velocitypowered.api.proxy.Player;
+import kotlin.Pair;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import ooo.foooooooooooo.velocitydiscord.LinkedPlayer;
 import ooo.foooooooooooo.velocitydiscord.VelocityDiscord;
 import ooo.foooooooooooo.velocitydiscord.discord.UserLinkData;
 
@@ -35,23 +39,33 @@ public class UnlinkCommand {
 
     var username_or_uuid = source.getArgument("minecraft_username_or_uuid", String.class);
 
-    String removedUUID = null;
+    Pair<String, LinkedPlayer> removedPlayer = null;
 
     try {
-      removedUUID = UserLinkData.removeFromUUIDAndSave(username_or_uuid);
-      if (removedUUID == null) {
-        removedUUID = UserLinkData.removeFromNameAndSave(username_or_uuid);
+      removedPlayer = UserLinkData.removeFromUUIDAndSave(username_or_uuid);
+      if (removedPlayer == null) {
+        removedPlayer = UserLinkData.removeFromNameAndSave(username_or_uuid);
       }
     }
     catch (Exception e) {
       source.getSource().sendPlainMessage("Error executing command: " + e);
     }
 
-    if (removedUUID == null) {
+    if (removedPlayer == null) {
       source.getSource().sendPlainMessage("Couldn't find and unlink player " + username_or_uuid);
     } else {
+      String unlinkedUuid = removedPlayer.getFirst();
+      LinkedPlayer unlinkedPlayer = removedPlayer.getSecond();
+      String unlinkerName;
+      if (source.getSource() instanceof Player player) {
+        unlinkerName = player.getUsername();
+      } else {
+        unlinkerName = "Console";
+      }
+      VelocityDiscord.getAdminLogsListener().onUnlink(unlinkerName, unlinkedPlayer.minecraftName, unlinkedUuid, unlinkedPlayer.discordId);
+
       source.getSource().sendPlainMessage("Successfully unlinked player " + username_or_uuid);
-      var maybePlayer = VelocityDiscord.SERVER.getPlayer(UUID.fromString(removedUUID));
+      var maybePlayer = VelocityDiscord.SERVER.getPlayer(UUID.fromString(unlinkedUuid));
       maybePlayer.ifPresent(player -> player.disconnect(MiniMessage.miniMessage().deserialize(VelocityDiscord.CONFIG.getMinecraftConfig().discordUnlinkKickMessage)));
     }
 

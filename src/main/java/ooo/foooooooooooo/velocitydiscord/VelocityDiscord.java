@@ -2,6 +2,7 @@ package ooo.foooooooooooo.velocitydiscord;
 
 import com.google.inject.Inject;
 import com.velocitypowered.api.event.Subscribe;
+import com.velocitypowered.api.event.command.PostCommandInvocationEvent;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
 import com.velocitypowered.api.plugin.Dependency;
@@ -20,6 +21,13 @@ import ooo.foooooooooooo.velocitydiscord.discord.UserLinkData;
 import ooo.foooooooooooo.velocitydiscord.discord.commands.LinkCommand;
 import ooo.foooooooooooo.velocitydiscord.yep.YepListener;
 import org.slf4j.Logger;
+import space.arim.libertybans.api.LibertyBans;
+import space.arim.libertybans.api.event.PardonEvent;
+import space.arim.libertybans.api.event.PunishEvent;
+import space.arim.omnibus.Omnibus;
+import space.arim.omnibus.OmnibusProvider;
+import space.arim.omnibus.events.EventConsumer;
+import space.arim.omnibus.events.ListenerPriorities;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -31,7 +39,8 @@ import java.util.function.BiConsumer;
 @Plugin(id = "discord", name = Constants.PluginName, description = Constants.PluginDescription, version =
   Constants.PluginVersion, url = Constants.PluginUrl, authors = {"fooooooooooooooo"}, dependencies = {
   @Dependency(id = Constants.YeplibId, optional = true),
-  @Dependency(id = Constants.LuckPermsId, optional = true)
+  @Dependency(id = Constants.LuckPermsId, optional = true),
+  @Dependency(id = "libertybans", optional = true)
 })
 public class VelocityDiscord {
   public static final MinecraftChannelIdentifier YepIdentifier = MinecraftChannelIdentifier.create("velocity", "yep");
@@ -48,6 +57,9 @@ public class VelocityDiscord {
 
   @Nullable
   private VelocityListener listener = null;
+
+  @Nullable
+  private AdminLogsListener adminLogsListener = null;
 
   @Nullable
   private Discord discord = null;
@@ -84,7 +96,8 @@ public class VelocityDiscord {
       this.yep = new YepListener();
     }
 
-    this.listener = new VelocityListener(this.discord);
+    this.adminLogsListener = new AdminLogsListener(this.discord);
+    this.listener = new VelocityListener(this.discord, this.adminLogsListener);
   }
 
   public static Discord getDiscord() {
@@ -93,6 +106,10 @@ public class VelocityDiscord {
 
   public static VelocityListener getListener() {
     return instance.listener;
+  }
+
+  public static AdminLogsListener getAdminLogsListener() {
+    return instance.adminLogsListener;
   }
 
   public static VelocityDiscord getInstance() {
@@ -107,6 +124,10 @@ public class VelocityDiscord {
   public void onProxyInitialization(ProxyInitializeEvent event) {
     if (this.listener != null) {
       register(this.listener);
+    }
+
+    if (this.adminLogsListener != null) {
+      register(this.adminLogsListener);
     }
 
     if (this.yep != null) {
@@ -149,6 +170,22 @@ public class VelocityDiscord {
       if (this.luckPerms == null) {
         LOGGER.info("LuckPerms not found, prefix will not be displayed");
       }
+    }
+
+    try {
+      if (SERVER.getPluginManager().isLoaded("libertybans")) {
+        Omnibus omnibus = OmnibusProvider.getOmnibus();
+        LibertyBans libertyBans = omnibus.getRegistry().getProvider(LibertyBans.class).orElseThrow();
+
+        EventConsumer<PunishEvent> punishListener = punishEvent -> adminLogsListener.onPunishment(punishEvent, libertyBans);
+        EventConsumer<PardonEvent> pardonListener = pardonEvent -> adminLogsListener.onPardonment(pardonEvent, libertyBans);
+        omnibus.getEventBus().registerListener(PunishEvent.class, ListenerPriorities.LOWEST, punishListener);
+        omnibus.getEventBus().registerListener(PardonEvent.class, ListenerPriorities.LOWEST, pardonListener);
+
+        LOGGER.info("LibertyBans found, punishments will be logged!");
+      }
+    } catch (Exception e) {
+      LOGGER.warn("Error getting LibertyBans instance: {}", e.getMessage());
     }
   }
 
